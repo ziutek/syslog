@@ -102,7 +102,7 @@ func (s *Server) receiver(c *net.UDPConn) {
 				if err == nil && p >= 0 {
 					hasPrio = true
 					prio = p
-					pkt = pkt[n:]
+					pkt = pkt[n+1:]
 				}
 			}
 		}
