@@ -1,3 +1,5 @@
+// Syslog server library
+// Currently it handles only RFC 3164 packets
 package syslog
 
 import (
@@ -97,7 +99,7 @@ func (s *Server) receiver(c *net.UDPConn) {
 		hasPrio := false
 		if pkt[0] == '<' {
 			n = 1 + bytes.IndexByte(pkt[1:], '>')
-			if n > 1 && n < 5{
+			if n > 1 && n < 5 {
 				p, err := strconv.Atoi(string(pkt[1:n]))
 				if err == nil && p >= 0 {
 					hasPrio = true
@@ -112,9 +114,9 @@ func (s *Server) receiver(c *net.UDPConn) {
 		// Parse header (if exists)
 		if hasPrio && len(pkt) >= 16 && pkt[15] == ' ' {
 			// Get timestamp
-			layout := "Jan 02 15:04:05"
+			layout := "Jan _2 15:04:05"
 			ts, err := time.Parse(layout, string(pkt[:15]))
-			if err == nil && !m.Timestamp.IsZero() {
+			if err == nil && !ts.IsZero() {
 				// Get hostname
 				n = 16 + bytes.IndexByte(pkt[16:], ' ')
 				if n != 15 {
@@ -123,6 +125,8 @@ func (s *Server) receiver(c *net.UDPConn) {
 					pkt = pkt[n+1:]
 				}
 			}
+			// TODO: check for version an new format of timestamp as
+			// described in RFC 5424.
 		}
 
 		// Parse msg part
