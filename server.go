@@ -97,7 +97,7 @@ func (s *Server) receiver(c *net.UDPConn) {
 		hasPrio := false
 		if pkt[0] == '<' {
 			n = 1 + bytes.IndexByte(pkt[1:], '>')
-			if n != 0 {
+			if n > 1 && n < 5{
 				p, err := strconv.Atoi(string(pkt[1:n]))
 				if err == nil && p >= 0 {
 					hasPrio = true
