@@ -22,7 +22,6 @@ type Message struct {
 	Content   string
 }
 
-
 func (m *Message) String() string {
 	timeLayout := "2006-01-02 15:04:05"
 	timestampLayout := "01-02 15:04:05"
@@ -88,53 +87,52 @@ func (s *Server) receiver(c *net.UDPConn) {
 			log.Println("Read error:", err)
 			return
 		}
+		pkt := buf[:n]
+
 		m.Source = addr
 		m.Time = time.Now()
 
-		// Parse priority
-		pkt := buf[:n]
-		if pkt[0] != '<' {
-			continue
-		}
-		pkt = pkt[1:]
-		n = bytes.IndexByte(pkt, '>')
-		if n == -1 {
-			continue
-		}
-		prio, err := strconv.Atoi(string(pkt[:n]))
-		if err != nil || prio < 0 {
-			continue
+		// Parse priority (if exists)
+		prio := 13 // default priority
+		hasPrio := false
+		if pkt[0] == '<' {
+			n = 1 + bytes.IndexByte(pkt[1:], '>')
+			if n != 0 {
+				p, err := strconv.Atoi(string(pkt[1:n]))
+				if err == nil && p >= 0 {
+					hasPrio = true
+					prio = p
+					pkt = pkt[n:]
+				}
+			}
 		}
 		m.Severity = Severity(prio & 0x07)
 		m.Facility = Facility(prio >> 3)
 
-		pkt = pkt[n+1:]
-
 		// Parse header (if exists)
-		if len(pkt) >= 16 && pkt[15] == ' ' {
+		if hasPrio && len(pkt) >= 16 && pkt[15] == ' ' {
 			// Get timestamp
 			layout := "Jan 02 15:04:05"
-			m.Timestamp, err = time.Parse(layout, string(pkt[:15]))
+			ts, err := time.Parse(layout, string(pkt[:15]))
 			if err == nil && !m.Timestamp.IsZero() {
 				// Get hostname
-				pkt = pkt[16:]
-				n = bytes.IndexByte(pkt, ' ')
-				if n == -1 {
-					continue
+				n = 16 + bytes.IndexByte(pkt[16:], ' ')
+				if n != 15 {
+					m.Timestamp = ts
+					m.Hostname = string(pkt[16:n])
+					pkt = pkt[n+1:]
 				}
-				m.Hostname = string(pkt[:n])
-				pkt = pkt[n+1:]
 			}
 		}
 
 		// Parse msg part
+		pkt = bytes.TrimRightFunc(pkt, isNulCrLf)
 		n = bytes.IndexFunc(pkt, isNotAlnum)
-		if n == -1 {
-			continue
+		if n != -1 {
+			m.Tag = string(pkt[:n])
+			pkt = pkt[n:]
 		}
-		m.Tag = string(pkt[:n])
-		pkt = pkt[n:]
-		m.Content = string(bytes.TrimRightFunc(pkt, isNulCrLf))
+		m.Content = string(pkt)
 
 		fmt.Println(m.String())
 	}
