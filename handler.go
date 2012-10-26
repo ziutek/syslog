@@ -1,6 +1,6 @@
 package syslog
 
-// Hanler handles syslog messages
+// Handler handles syslog messages
 type Handler interface {
 	// Handle should return Message (mayby modified) for future processing by
 	// other handlers or return nil. If Handle is called with nil message it
@@ -18,10 +18,10 @@ type BaseHandler struct {
 	ft     bool
 }
 
-// NewBaseHandler creates BaseHandler using specified filter. A message is
-// passed to BaseHandler internal queue (of qlen length) if filter is nil
-// or if it returns true. If filter returns false or ft is true message is
-// returned  to server for future processing by other handlers.
+// NewBaseHandler creates BaseHandler using specified filter. If filter is nil
+// or if it returns true messages are passed to BaseHandler internal queue
+// (of qlen length). If filter returns false or ft is true messages are returned
+// to server for future processing by other handlers.
 func NewBaseHandler(qlen int, filter func(*Message) bool, ft bool) *BaseHandler {
 	return &BaseHandler{
 		queue:  make(chan *Message, qlen),
@@ -55,7 +55,8 @@ func (h *BaseHandler) Handle(m *Message) *Message {
 }
 
 // Get returns first message from internal queue. It waits for message if queue
-// is empty. It returns nil if there is no more messages to process.
+// is empty. It returns nil if there is no more messages to process and handler
+// should shutdown.
 func (h *BaseHandler) Get() *Message {
 	m, ok := <-h.queue
 	if ok {
@@ -64,7 +65,7 @@ func (h *BaseHandler) Get() *Message {
 	return nil
 }
 
-// End indicates the server that handler properly shutdown. You need to call End
+// End signals the server that handler properly shutdown. You need to call End
 // only if Get has returned nil before.
 func (h *BaseHandler) End() {
 	close(h.end)

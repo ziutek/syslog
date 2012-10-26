@@ -31,7 +31,7 @@ func NewServer() *Server {
 	return &Server{l: log.New(os.Stderr, "", log.LstdFlags)}
 }
 
-// SetLogger sets logger for server errors. Running server is rather quiet and
+// SetLogger sets logger for server errors. A running server is rather quiet and
 // logs only fatal errors using FatalLogger interface. By default standard go
 // logger is used so errors are writen to stdout and after that whole
 // application is halted. Using SetLogger you can change this behavior (log
@@ -45,8 +45,8 @@ func (s *Server) AddHandler(h Handler) {
 	s.handlers = append(s.handlers, h)
 }
 
-// Listen adds to the server next listen address which can be a path for unix
-// domain socket or host:port for UDP socket.
+// Listen starts gorutine that receives syslog messages on specified address.
+// addr can be a path for unix domain socket or host:port for UDP socket.
 func (s *Server) Listen(addr string) error {
 	var c *net.UDPConn
 	if strings.IndexRune(addr, ':') != -1 {
