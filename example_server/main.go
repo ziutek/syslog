@@ -9,19 +9,23 @@ import (
 )
 
 type handler struct {
+	// To simplify implementation of our handler we embed helper
+	// syslog.BaseHandler struct.
 	*syslog.BaseHandler
 }
 
+// Simple fiter for named/bind messages which can be used with BaseHandler
 func filter(m *syslog.Message) bool {
 	return m.Tag == "named" || m.Tag == "bind"
 }
 
 func newHandler() *handler {
 	h := handler{syslog.NewBaseHandler(5, filter, false)}
-	go h.mainLoop()
+	go h.mainLoop() // BaseHandler needs some gorutine that reads from its queue
 	return &h
 }
 
+// mainLoop reads from BaseHandler queue using h.Get and logs messages to stdout
 func (h *handler) mainLoop() {
 	for {
 		m := h.Get()
@@ -35,7 +39,7 @@ func (h *handler) mainLoop() {
 }
 
 func main() {
-	var s syslog.Server
+	s := syslog.NewServer()
 	s.AddHandler(newHandler())
 	s.Listen("0.0.0.0:1514")
 
