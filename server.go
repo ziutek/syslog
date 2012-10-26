@@ -1,5 +1,5 @@
-// Syslog server library
-// Currently it handles only RFC 3164 packets
+// Syslog server library. It is based on RFC 3164 so it doesn't parse properly
+// packets with new header format (described in RFC 5424).
 package syslog
 
 import (
