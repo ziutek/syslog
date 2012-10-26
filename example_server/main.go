@@ -39,14 +39,17 @@ func (h *handler) mainLoop() {
 }
 
 func main() {
+	// Create a server with one handler and run one listen gorutine
 	s := syslog.NewServer()
 	s.AddHandler(newHandler())
 	s.Listen("0.0.0.0:1514")
 
+	// Wait for terminating signal
 	sc := make(chan os.Signal, 2)
 	signal.Notify(sc, syscall.SIGTERM, syscall.SIGINT)
 	<-sc
 
+	// Shutdown the server
 	fmt.Println("Shutdown the server...")
 	s.Shutdown()
 	fmt.Println("Server is down")
