@@ -8,7 +8,7 @@ type Handler interface {
 	Handle(*Message) *Message
 }
 
-// BaseHandler is desigend for simplify the creation of your own handlers. It
+// BaseHandler is desigend for simplify the creation of real handlers. It
 // implements Handler interface using nonblocking queuing of messages and
 // simple message filtering.
 type BaseHandler struct {
@@ -19,8 +19,9 @@ type BaseHandler struct {
 }
 
 // NewBaseHandler creates BaseHandler using specified filter. A message is
-// queued in BaseHandler if filter is nil or returns true. If ft is true
-// message is returned by handler for future processing by other handlers.
+// passed to BaseHandler internal queue (of qlen length) if filter is nil
+// or if it returns true. If filter returns false or ft is true message is
+// returned  to server for future processing by other handlers.
 func NewBaseHandler(qlen int, filter func(*Message) bool, ft bool) *BaseHandler {
 	return &BaseHandler{
 		queue:  make(chan *Message, qlen),
@@ -30,26 +31,27 @@ func NewBaseHandler(qlen int, filter func(*Message) bool, ft bool) *BaseHandler 
 	}
 }
 
-// Handle inserts m in an internal queue. If queue is full it immediately
-// returns m otherwise it returns nil or m depending on whether ft is false or
-// true.
+// Handle inserts m in an internal queue. It immediately returns even if
+// queue is full. 
 func (h *BaseHandler) Handle(m *Message) *Message {
 	if m == nil {
-		close(h.queue)
-		<-h.end
+		close(h.queue) // signal that ther is no more messages for processing
+		<-h.end        // wait for handler shutdown
 		return nil
 	}
-	if h.filter == nil || !h.filter(m) {
+	if h.filter != nil && !h.filter(m) {
+		// m doesn't match the filter
 		return m
 	}
+	// Try queue m
 	select {
 	case h.queue <- m:
-		if !h.ft {
-			return nil
-		}
 	default:
 	}
-	return m
+	if h.ft {
+		return m
+	}
+	return nil
 }
 
 // Get returns first message from internal queue. It waits for message if queue
