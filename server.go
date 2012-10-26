@@ -4,44 +4,45 @@ package syslog
 
 import (
 	"bytes"
-	"fmt"
 	"log"
 	"net"
+	"os"
 	"strconv"
 	"strings"
 	"time"
 	"unicode"
 )
 
-type Message struct {
-	Time   time.Time
-	Source net.Addr
-	Facility
-	Severity
-	Timestamp time.Time // optional
-	Hostname  string    // optional
-	Tag       string
-	Content   string
-}
-
-func (m *Message) String() string {
-	timeLayout := "2006-01-02 15:04:05"
-	timestampLayout := "01-02 15:04:05"
-	return fmt.Sprintf(
-		"%s %s <%s,%s> (%s '%s') [%s] %s",
-		m.Time.Format(timeLayout), m.Source,
-		m.Facility, m.Severity,
-		m.Timestamp.Format(timestampLayout), m.Hostname,
-		m.Tag, m.Content,
-	)
+type FatalLogger interface {
+	Fatal(...interface{})
+	Fatalf(format string, v ...interface{})
+	Fatalln(...interface{})
 }
 
 type Server struct {
-	q chan Message
+	conns    []*net.UDPConn
+	handlers []Handler
+	shutdown bool
+	l        FatalLogger
 }
 
-func NewServer(bufLen int) *Server {
-	return &Server{q: make(chan Message, bufLen)}
+// Creates idle server
+func NewServer() *Server {
+	return &Server{l: log.New(os.Stderr, "", log.LstdFlags)}
+}
+
+// SetLogger sets logger for server errors. Running server is rather quiet and
+// logs only fatal errors using FatalLogger interface. By default standard go
+// logger is used so errors are writen to stdout and after that whole
+// application is halted. Using SetLogger you can change this behavior (log
+// erross elsewhere and don't halt whole application).
+func (s *Server) SetLogger(l FatalLogger) {
+	s.l = l
+}
+
+// AddHandler adds h to internal ordered list of handlers
+func (s *Server) AddHandler(h Handler) {
+	s.handlers = append(s.handlers, h)
 }
 
 // Listen adds to the server next listen address which can be a path for unix
@@ -67,8 +68,23 @@ func (s *Server) Listen(addr string) error {
 			return err
 		}
 	}
+	s.conns = append(s.conns, c)
 	go s.receiver(c)
 	return nil
+}
+
+// Shutdown stops server.
+func (s *Server) Shutdown() {
+	s.shutdown = true
+	for _, c := range s.conns {
+		err := c.Close()
+		if err != nil {
+			s.l.Fatalln(err)
+		}
+	}
+	s.passToHandlers(nil)
+	s.conns = nil
+	s.handlers = nil
 }
 
 func isNotAlnum(r rune) bool {
@@ -79,18 +95,29 @@ func isNulCrLf(r rune) bool {
 	return r == 0 || r == '\r' || r == '\n'
 }
 
+func (s *Server) passToHandlers(m *Message) {
+	for _, h := range s.handlers {
+		m = h.Handle(m)
+		if m == nil {
+			break
+		}
+	}
+}
+
 func (s *Server) receiver(c *net.UDPConn) {
 	//q := (chan<- Message)(s.q)
 	buf := make([]byte, 1024)
 	for {
-		var m Message
 		n, addr, err := c.ReadFrom(buf)
 		if err != nil {
-			log.Println("Read error:", err)
+			if !s.shutdown {
+				s.l.Fatalln("Read error:", err)
+			}
 			return
 		}
 		pkt := buf[:n]
 
+		m := new(Message)
 		m.Source = addr
 		m.Time = time.Now()
 
@@ -125,7 +152,7 @@ func (s *Server) receiver(c *net.UDPConn) {
 					pkt = pkt[n+1:]
 				}
 			}
-			// TODO: check for version an new format of timestamp as
+			// TODO: check for version an new format of header as
 			// described in RFC 5424.
 		}
 
@@ -138,6 +165,6 @@ func (s *Server) receiver(c *net.UDPConn) {
 		}
 		m.Content = string(pkt)
 
-		fmt.Println(m.String())
+		s.passToHandlers(m)
 	}
 }
