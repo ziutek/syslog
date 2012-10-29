@@ -17,8 +17,8 @@ type Message struct {
 	Content   string
 }
 
-// NetAddr only network part of addr as string (IP for UDP or Name for UDS)
-func (m *Message) NetAddr() string {
+// NetSrc only network part of Source as string (IP for UDP or Name for UDS)
+func (m *Message) NetSrc() string {
 	switch a := m.Source.(type) {
 	case *net.UDPAddr:
 		return a.IP.String()
