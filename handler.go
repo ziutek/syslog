@@ -32,7 +32,8 @@ func NewBaseHandler(qlen int, filter func(*Message) bool, ft bool) *BaseHandler 
 }
 
 // Handle inserts m in an internal queue. It immediately returns even if
-// queue is full. 
+// queue is full. If m == nil it closes queue and waits for End method call
+// before quit.
 func (h *BaseHandler) Handle(m *Message) *Message {
 	if m == nil {
 		close(h.queue) // signal that ther is no more messages for processing

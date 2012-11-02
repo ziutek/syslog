@@ -3,6 +3,7 @@ package syslog
 import (
 	"fmt"
 	"net"
+	"strings"
 	"time"
 )
 
@@ -34,11 +35,22 @@ func (m *Message) NetSrc() string {
 func (m *Message) String() string {
 	timeLayout := "2006-01-02 15:04:05"
 	timestampLayout := "01-02 15:04:05"
+	var h []string
+	if !m.Timestamp.IsZero() {
+		h = append(h, m.Timestamp.Format(timestampLayout))
+	}
+	if m.Hostname != "" {
+		h = append(h, m.Hostname)
+	}
+	var header string
+	if len(h) > 0 {
+		header += " " + strings.Join(h, " ")
+	}
 	return fmt.Sprintf(
-		"%s %s <%s,%s> (%s '%s') [%s] %s",
+		"%s %s <%s,%s>%s %s%s",
 		m.Time.Format(timeLayout), m.Source,
 		m.Facility, m.Severity,
-		m.Timestamp.Format(timestampLayout), m.Hostname,
+		header,
 		m.Tag, m.Content,
 	)
 }
