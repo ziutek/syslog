@@ -70,7 +70,7 @@ const (
 	Alert
 	Crit
 	Err
-	Waining
+	Warning
 	Notice
 	Info
 	Debug
