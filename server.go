@@ -26,14 +26,14 @@ type Server struct {
 	l        FatalLogger
 }
 
-// Creates idle server
+//  NewServer creates idle server
 func NewServer() *Server {
 	return &Server{l: log.New(os.Stderr, "", log.LstdFlags)}
 }
 
 // SetLogger sets logger for server errors. A running server is rather quiet and
-// logs only fatal errors using FatalLogger interface. By default standard go
-// logger is used so errors are writen to stdout and after that whole
+// logs only fatal errors using FatalLogger interface. By default standard Go
+// logger is used so errors are writen to stderr and after that whole
 // application is halted. Using SetLogger you can change this behavior (log
 // erross elsewhere and don't halt whole application).
 func (s *Server) SetLogger(l FatalLogger) {
@@ -46,7 +46,7 @@ func (s *Server) AddHandler(h Handler) {
 }
 
 // Listen starts gorutine that receives syslog messages on specified address.
-// addr can be a path for unix domain socket or host:port for UDP socket.
+// addr can be a path (for unix domain sockets) or host:port (for UDP).
 func (s *Server) Listen(addr string) error {
 	var c *net.UDPConn
 	if strings.IndexRune(addr, ':') != -1 {

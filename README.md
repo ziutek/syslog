@@ -6,4 +6,4 @@ Using this library you can easy implement your own syslog server that:
 and respond for them.
 
 See [documentation](http://gopkgdoc.appspot.com/pkg/github.com/ziutek/syslog)
-and [example server](/ziutek/syslog/main.go).
+and [example server](https://github.com/ziutek/syslog/blob/master/example_server/main.go).
