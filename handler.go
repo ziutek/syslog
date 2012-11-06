@@ -66,6 +66,14 @@ func (h *BaseHandler) Get() *Message {
 	return nil
 }
 
+// Queue returns BaseHandler internal queue as read-only channel. You can use
+// it directly, especially if your handler need to select from multiple channels
+// or have to work without blocking. You need to check if this channel is closed by
+// sender and properly shutdown in this case.
+func (h *BaseHandler) Queue() <-chan *Message {
+	return h.queue
+}
+
 // End signals the server that handler properly shutdown. You need to call End
 // only if Get has returned nil before.
 func (h *BaseHandler) End() {
