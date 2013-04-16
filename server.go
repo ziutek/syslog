@@ -20,7 +20,7 @@ type FatalLogger interface {
 }
 
 type Server struct {
-	conns    []*net.UDPConn
+	conns    []net.PacketConn
 	handlers []Handler
 	shutdown bool
 	l        FatalLogger
@@ -48,7 +48,7 @@ func (s *Server) AddHandler(h Handler) {
 // Listen starts gorutine that receives syslog messages on specified address.
 // addr can be a path (for unix domain sockets) or host:port (for UDP).
 func (s *Server) Listen(addr string) error {
-	var c *net.UDPConn
+	var c net.PacketConn
 	if strings.IndexRune(addr, ':') != -1 {
 		a, err := net.ResolveUDPAddr("udp", addr)
 		if err != nil {
@@ -104,7 +104,7 @@ func (s *Server) passToHandlers(m *Message) {
 	}
 }
 
-func (s *Server) receiver(c *net.UDPConn) {
+func (s *Server) receiver(c net.PacketConn) {
 	//q := (chan<- Message)(s.q)
 	buf := make([]byte, 1024)
 	for {
