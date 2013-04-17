@@ -13,7 +13,7 @@ type FileHandler struct {
 	*BaseHandler
 	filename string
 	f        *os.File
-	l        *log.Logger
+	l        Logger
 }
 
 // NewFileHandler accepts all arguments expected by NewBaseHandler plus
@@ -25,14 +25,15 @@ func NewFileHandler(filename string, qlen int, filter func(*Message) bool,
 	h := &FileHandler{
 		BaseHandler: NewBaseHandler(qlen, filter, ft),
 		filename:    filename,
+		l:           log.New(os.Stderr, "", log.LstdFlags),
 	}
 	go h.mainLoop()
 	return h
 }
 
-// SetLogger changes internal logger used to log I/O errors. If l == nil
-// (default value for internal logger) it uses functions from log package
-func (h *FileHandler) SetLogger(l *log.Logger) {
+// SetLogger changes internal logger used to log I/O errors. Default logerr is
+// log.New(os.Stderr, "", log.LstdFlags). You can change it
+func (h *FileHandler) SetLogger(l Logger) {
 	h.l = l
 }
 

@@ -13,12 +13,6 @@ import (
 	"unicode"
 )
 
-type FatalLogger interface {
-	Fatal(...interface{})
-	Fatalf(format string, v ...interface{})
-	Fatalln(...interface{})
-}
-
 type Server struct {
 	conns    []net.PacketConn
 	handlers []Handler
