@@ -7,7 +7,7 @@ import (
 	"syscall"
 )
 
-// FileHandler saves messages into text file. It properly handles logrotate
+// FileHandler saves messages into a text file. It properly handles logrotate
 // HUP signal (closes a file and tries to open/create new one).
 type FileHandler struct {
 	*BaseHandler
@@ -31,8 +31,8 @@ func NewFileHandler(filename string, qlen int, filter func(*Message) bool,
 	return h
 }
 
-// SetLogger changes internal logger used to log I/O errors. Default logerr is
-// log.New(os.Stderr, "", log.LstdFlags). You can change it
+// SetLogger changes an internal logger used to log I/O errors. By default I/O
+// errors are written to os.Stderr.
 func (h *FileHandler) SetLogger(l Logger) {
 	h.l = l
 }
