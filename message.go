@@ -14,8 +14,10 @@ type Message struct {
 	Severity
 	Timestamp time.Time // optional
 	Hostname  string    // optional
-	Tag       string
-	Content   string
+	Tag       string // message tag as defined in RFC 3164
+	Content   string // message content as defined in RFC 3164
+	Tag1      string // alternate message tag (white rune as separator)
+	Content1  string // alternate message content (white rune as separator)
 }
 
 // NetSrc only network part of Source as string (IP for UDP or Name for UDS)

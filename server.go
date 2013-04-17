@@ -157,13 +157,22 @@ func (s *Server) receiver(c net.PacketConn) {
 		}
 
 		// Parse msg part
-		pkt = bytes.TrimRightFunc(pkt, isNulCrLf)
-		n = bytes.IndexFunc(pkt, isNotAlnum)
+		msg := string(bytes.TrimRightFunc(pkt, isNulCrLf))
+		n = strings.IndexFunc(msg, isNotAlnum)
 		if n != -1 {
-			m.Tag = string(pkt[:n])
-			pkt = pkt[n:]
+			m.Tag = msg[:n]
+			m.Content = msg[n:]
+		} else {
+			m.Content = msg
 		}
-		m.Content = string(pkt)
+		msg = strings.TrimFunc(msg, unicode.IsSpace)
+		n = strings.IndexFunc(msg, unicode.IsSpace)
+		if n != -1 {
+			m.Tag1 = msg[:n]
+			m.Content1 = strings.TrimLeftFunc(msg[n+1:], unicode.IsSpace)
+		} else {
+			m.Content1 = msg
+		}
 
 		s.passToHandlers(m)
 	}
