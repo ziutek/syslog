@@ -7,40 +7,40 @@ import (
 	"syscall"
 )
 
-// FileHandler saves messages into a text file. It properly handles logrotate
-// HUP signal (closes a file and tries to open/create new one).
+// FileHandler implements Handler interface in the way to save messages into a
+// text file. It properly handles logrotate HUP signal (closes a file and tries
+// to open/create new one).
 type FileHandler struct {
-	*BaseHandler
+	bh       *BaseHandler
 	filename string
 	f        *os.File
 	l        Logger
 }
 
 // NewFileHandler accepts all arguments expected by NewBaseHandler plus
-// filename which is the path to the log file. It returns implementation of
-// Handler interface that saves syslog messages into a text file.
+// filename which is the path to the log file.
 func NewFileHandler(filename string, qlen int, filter func(*Message) bool,
 	ft bool) *FileHandler {
 
 	h := &FileHandler{
-		BaseHandler: NewBaseHandler(qlen, filter, ft),
-		filename:    filename,
-		l:           log.New(os.Stderr, "", log.LstdFlags),
+		bh:       NewBaseHandler(qlen, filter, ft),
+		filename: filename,
+		l:        log.New(os.Stderr, "", log.LstdFlags),
 	}
 	go h.mainLoop()
 	return h
 }
 
 // SetLogger changes an internal logger used to log I/O errors. By default I/O
-// errors are written to os.Stderr.
+// errors are written to os.Stderr using log.Logger.
 func (h *FileHandler) SetLogger(l Logger) {
 	h.l = l
 }
 
 func (h *FileHandler) mainLoop() {
-	defer h.BaseHandler.End()
+	defer h.bh.End()
 
-	mq := h.BaseHandler.Queue()
+	mq := h.bh.Queue()
 	sq := make(chan os.Signal, 1)
 	signal.Notify(sq, syscall.SIGHUP)
 
@@ -87,4 +87,8 @@ func (h *FileHandler) checkErr(err error) bool {
 		h.l.Print(h.filename, ": ", err)
 	}
 	return true
+}
+
+func (h *FileHandler) Handle(m *Message) *Message {
+	return h.bh.Handle(m)
 }
