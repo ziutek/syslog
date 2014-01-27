@@ -82,7 +82,7 @@ func (s *Server) Shutdown() {
 }
 
 func isNotAlnum(r rune) bool {
-	return !(unicode.IsLetter(r) || unicode.IsNumber(r) || r == '-' || r == '.' || r == '_')
+	return !(unicode.IsLetter(r) || unicode.IsNumber(r))
 }
 
 func isNulCrLf(r rune) bool {
