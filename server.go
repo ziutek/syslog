@@ -81,8 +81,8 @@ func (s *Server) Shutdown() {
 	s.handlers = nil
 }
 
-func isNotAlnum(r rune) bool {
-	return !(unicode.IsLetter(r) || unicode.IsNumber(r))
+func isNotTagChar(r rune) bool {
+        return !(unicode.IsLetter(r) || unicode.IsNumber(r) || r == '-' || r == '.' || r == '_')
 }
 
 func isNulCrLf(r rune) bool {
@@ -152,7 +152,7 @@ func (s *Server) receiver(c net.PacketConn) {
 
 		// Parse msg part
 		msg := string(bytes.TrimRightFunc(pkt, isNulCrLf))
-		n = strings.IndexFunc(msg, isNotAlnum)
+		n = strings.IndexFunc(msg, isNotTagChar)
 		if n != -1 {
 			m.Tag = msg[:n]
 			m.Content = msg[n:]
