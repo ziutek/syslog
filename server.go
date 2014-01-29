@@ -132,22 +132,36 @@ func (s *Server) receiver(c net.PacketConn) {
 		m.Severity = Severity(prio & 0x07)
 		m.Facility = Facility(prio >> 3)
 
+		hostnameOffset := 0
+
 		// Parse header (if exists)
-		if hasPrio && len(pkt) >= 16 && pkt[15] == ' ' {
-			// Get timestamp
+		if hasPrio && len(pkt) >= 26 && pkt[25] == ' ' && pkt[15] != ' ' {
+			// OK, it looks like we're dealing with a RFC 5424-style packet
+			ts, err := time.Parse(time.RFC3339, string(pkt[:25]))
+			if err == nil && !ts.IsZero() {
+				// Time parsed correctly.  This is most certainly a RFC 5424-style packet.
+				// Hostname starts at pkt[26]
+				hostnameOffset := 26
+			}
+		} else if hasPrio && len(pkt) >= 16 && pkt[15] == ' ' {
+			// Looks like we're dealing with a RFC 3164-style packet
 			layout := "Jan _2 15:04:05"
 			ts, err := time.Parse(layout, string(pkt[:15]))
 			if err == nil && !ts.IsZero() {
-				// Get hostname
-				n = 16 + bytes.IndexByte(pkt[16:], ' ')
-				if n != 15 {
-					m.Timestamp = ts
-					m.Hostname = string(pkt[16:n])
-					pkt = pkt[n+1:]
-				}
+				// Time parsed correctly.   This is most certainly a RFC 3164-style packet.
+				hostnameOffset = 16
 			}
-			// TODO: check for version an new format of header as
-			// described in RFC 5424.
+		}
+
+		if hostnameOffset == 0 {
+			s.l.Printf("Packet did not parse correctly:\n%v\n", string(pkt[:]))
+		} else {
+			n = hostnameOffset + bytes.IndexByte(pkt[hostnameOffset:], ' ')
+			if n != hostnameOffset-1 {
+				m.Timestamp = ts
+				m.Hostname = string(pkt[hostnameOffset:n])
+				pkt = pkt[n+1]
+			}
 		}
 
 		// Parse msg part
