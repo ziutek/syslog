@@ -17,6 +17,7 @@ type Server struct {
 	conns    []net.PacketConn
 	handlers []Handler
 	shutdown bool
+	tagrunes map[rune]bool
 	l        FatalLogger
 }
 
@@ -81,12 +82,19 @@ func (s *Server) Shutdown() {
 	s.handlers = nil
 }
 
-func isNotAlnum(r rune) bool {
-	return !(unicode.IsLetter(r) || unicode.IsNumber(r))
+func (s *Server) isNotAlnum(r rune) bool {
+	return !(unicode.IsLetter(r) || unicode.IsNumber(r) || s.tagrunes[r])
 }
 
 func isNulCrLf(r rune) bool {
 	return r == 0 || r == '\r' || r == '\n'
+}
+
+func (s *Server) AddAllowedRunes(allowed string) {
+	s.tagrunes = make(map[rune]bool)
+	for _, runeValue := range allowed {
+		s.tagrunes[runeValue] = true
+	}
 }
 
 func (s *Server) passToHandlers(m *Message) {
@@ -99,7 +107,6 @@ func (s *Server) passToHandlers(m *Message) {
 }
 
 func (s *Server) receiver(c net.PacketConn) {
-	//q := (chan<- Message)(s.q)
 	buf := make([]byte, 1024)
 	for {
 		n, addr, err := c.ReadFrom(buf)
@@ -132,27 +139,43 @@ func (s *Server) receiver(c net.PacketConn) {
 		m.Severity = Severity(prio & 0x07)
 		m.Facility = Facility(prio >> 3)
 
+		hostnameOffset := 0
+		ts := time.Now()
+
 		// Parse header (if exists)
-		if hasPrio && len(pkt) >= 16 && pkt[15] == ' ' {
-			// Get timestamp
+		if hasPrio && len(pkt) >= 26 && pkt[25] == ' ' && pkt[15] != ' ' {
+			// OK, it looks like we're dealing with a RFC 5424-style packet
+			ts, err := time.Parse(time.RFC3339, string(pkt[:25]))
+			if err == nil && !ts.IsZero() {
+				// Time parsed correctly.  This is most certainly a RFC 5424-style packet.
+				// Hostname starts at pkt[26]
+				hostnameOffset = 26
+			}
+		} else if hasPrio && len(pkt) >= 16 && pkt[15] == ' ' {
+			// Looks like we're dealing with a RFC 3164-style packet
 			layout := "Jan _2 15:04:05"
 			ts, err := time.Parse(layout, string(pkt[:15]))
 			if err == nil && !ts.IsZero() {
-				// Get hostname
-				n = 16 + bytes.IndexByte(pkt[16:], ' ')
-				if n != 15 {
-					m.Timestamp = ts
-					m.Hostname = string(pkt[16:n])
-					pkt = pkt[n+1:]
-				}
+				// Time parsed correctly.   This is most certainly a RFC 3164-style packet.
+				hostnameOffset = 16
 			}
-			// TODO: check for version an new format of header as
-			// described in RFC 5424.
 		}
+
+		if hostnameOffset == 0 {
+			log.Printf("Packet did not parse correctly:\n%v\n", string(pkt[:]))
+		} else {
+			n = hostnameOffset + bytes.IndexByte(pkt[hostnameOffset:], ' ')
+			if n != hostnameOffset-1 {
+				m.Timestamp = ts
+				m.Hostname = string(pkt[hostnameOffset:n])
+				pkt = pkt[n+1:]
+			}
+		}
+		_ = hostnameOffset
 
 		// Parse msg part
 		msg := string(bytes.TrimRightFunc(pkt, isNulCrLf))
-		n = strings.IndexFunc(msg, isNotAlnum)
+		n = strings.IndexFunc(msg, s.isNotAlnum)
 		if n != -1 {
 			m.Tag = msg[:n]
 			m.Content = msg[n:]
