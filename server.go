@@ -17,6 +17,7 @@ type Server struct {
 	conns    []net.PacketConn
 	handlers []Handler
 	shutdown bool
+	tagrunes map[rune]bool
 	l        FatalLogger
 }
 
@@ -81,12 +82,19 @@ func (s *Server) Shutdown() {
 	s.handlers = nil
 }
 
-func isNotAlnum(r rune) bool {
-	return !(unicode.IsLetter(r) || unicode.IsNumber(r))
+func (s *Server) isNotAlnum(r rune) bool {
+	return !(unicode.IsLetter(r) || unicode.IsNumber(r) || s.tagrunes[r])
 }
 
 func isNulCrLf(r rune) bool {
 	return r == 0 || r == '\r' || r == '\n'
+}
+
+func (s *Server) AddAllowedRunes(allowed string) {
+	s.tagrunes = make(map[rune]bool)
+	for _, runeValue := range allowed {
+		s.tagrunes[runeValue] = true
+	}
 }
 
 func (s *Server) passToHandlers(m *Message) {
@@ -167,7 +175,7 @@ func (s *Server) receiver(c net.PacketConn) {
 
 		// Parse msg part
 		msg := string(bytes.TrimRightFunc(pkt, isNulCrLf))
-		n = strings.IndexFunc(msg, isNotAlnum)
+		n = strings.IndexFunc(msg, s.isNotAlnum)
 		if n != -1 {
 			m.Tag = msg[:n]
 			m.Content = msg[n:]
