@@ -100,7 +100,7 @@ func (s *Server) passToHandlers(m *Message) {
 
 func (s *Server) receiver(c net.PacketConn) {
 	//q := (chan<- Message)(s.q)
-	buf := make([]byte, 1024)
+	buf := make([]byte, 10240)
 	for {
 		n, addr, err := c.ReadFrom(buf)
 		if err != nil {
